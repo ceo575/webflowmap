@@ -8,6 +8,24 @@ import { authConfig } from "./auth.config";
 export const { handlers, signIn, signOut, auth } = NextAuth({
     ...authConfig,
     secret: process.env.AUTH_SECRET,
+    callbacks: {
+        async jwt({ token, user }) {
+            // On sign in, add user id and role to token
+            if (user) {
+                token.id = user.id;
+                token.role = (user as any).role;
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            // Add id and role to session user object
+            if (session.user) {
+                (session.user as any).id = token.id;
+                (session.user as any).role = token.role;
+            }
+            return session;
+        },
+    },
     providers: [
         Credentials({
             credentials: {
