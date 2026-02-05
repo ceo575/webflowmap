@@ -15,21 +15,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             authorize: async (credentials) => {
+                console.log("Authorize attempt for:", credentials?.email);
                 const parsedCredentials = z
                     .object({ email: z.string().email(), password: z.string().min(6) })
                     .safeParse(credentials);
 
-                if (!parsedCredentials.success) return null;
+                if (!parsedCredentials.success) {
+                    console.error("Zod validation failed:", parsedCredentials.error.format());
+                    return null;
+                }
 
                 const { email, password } = parsedCredentials.data;
-                const user = await prisma.user.findUnique({ where: { email } });
 
-                if (!user || !user.password) return null;
+                try {
+                    const user = await prisma.user.findUnique({ where: { email } });
 
-                const passwordsMatch = await bcrypt.compare(password, user.password);
-                if (!passwordsMatch) return null;
+                    if (!user) {
+                        console.warn("User not found in DB:", email);
+                        return null;
+                    }
 
-                return user;
+                    if (!user.password) {
+                        console.error("User exists but has no password set:", email);
+                        return null;
+                    }
+
+                    const passwordsMatch = await bcrypt.compare(password, user.password);
+
+                    if (!passwordsMatch) {
+                        console.warn("Password mismatch for:", email);
+                        return null;
+                    }
+
+                    console.log("Authorize successful for:", email);
+                    return user;
+                } catch (dbError) {
+                    console.error("Database error during authorize:", dbError);
+                    throw dbError;
+                }
             },
         }),
     ],
