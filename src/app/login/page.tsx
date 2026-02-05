@@ -33,25 +33,8 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Email hoặc mật khẩu không chính xác")
       } else {
-        // Fetch session to get user role
-        const { getSession } = await import("next-auth/react")
-        const session = await getSession()
-
-        if (session?.user) {
-          const role = (session.user as any)?.role
-
-          // Redirect based on role
-          if (role === "ADMIN") {
-            router.push("/admin/dashboard")
-          } else {
-            router.push("/dashboard")
-          }
-          router.refresh()
-        } else {
-          // Fallback to root if session not available
-          router.push("/")
-          router.refresh()
-        }
+        // Force a hard navigation to root to ensure middleware and server-side auth run fresh
+        window.location.href = "/"
       }
     } catch (err) {
       setError("Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.")
