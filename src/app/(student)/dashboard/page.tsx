@@ -1,6 +1,100 @@
+"use client"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { ArrowRight, HelpCircle, Flame, GraduationCap, CheckCircle2, TrendingUp, AlertCircle } from "lucide-react"
 import { useSession } from "next-auth/react"
 
-// ... types and mock data ...
+// Types
+interface Topic {
+    id: string
+    title: string
+    subject: string
+    priority: "High" | "Medium" | "Low"
+    progress: number
+}
+
+interface Stat {
+    label: string
+    value: string | number
+    icon: React.ElementType
+    trend?: string
+    trendUp?: boolean
+    color: string
+}
+
+interface Strength {
+    id: string
+    title: string
+    mastery: number
+    icon: React.ElementType
+}
+
+// Mock Data
+const weaknessTopics: Topic[] = [
+    {
+        id: "1",
+        title: "Cực trị hàm hợp",
+        subject: "Đại số & Giải tích 12",
+        priority: "High",
+        progress: 45,
+    },
+    {
+        id: "2",
+        title: "Tích phân từng phần",
+        subject: "Đại số & Giải tích 12",
+        priority: "Medium",
+        progress: 60,
+    },
+    {
+        id: "3",
+        title: "Phương trình Logarit",
+        subject: "Đại số 12",
+        priority: "Low",
+        progress: 72,
+    },
+]
+
+const stats: Stat[] = [
+    {
+        label: "Điểm trung bình",
+        value: "8.5",
+        icon: GraduationCap,
+        trend: "+12%",
+        trendUp: true,
+        color: "emerald",
+    },
+    {
+        label: "Câu hỏi đã luyện",
+        value: 843,
+        icon: HelpCircle,
+        color: "blue",
+    },
+    {
+        label: "Chuỗi ngày",
+        value: "12 ngày",
+        icon: Flame,
+        color: "orange",
+    },
+]
+
+const strengths: Strength[] = [
+    {
+        id: "1",
+        title: "Hình học không gian",
+        mastery: 92,
+        icon: CheckCircle2,
+    },
+    {
+        id: "2",
+        title: "Hàm số mũ",
+        mastery: 88,
+        icon: TrendingUp,
+    },
+]
 
 export default function DashboardPage() {
     const { data: session } = useSession()
