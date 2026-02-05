@@ -15,7 +15,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 password: { label: "Password", type: "password" },
             },
             authorize: async (credentials) => {
-                console.log("Authorize attempt for:", credentials?.email);
+                console.log("--- Auth Start ---");
+                console.log("Email:", credentials?.email);
+                console.log("Secret present:", !!process.env.AUTH_SECRET);
+                console.log("DB URL present:", !!process.env.DATABASE_URL);
                 const parsedCredentials = z
                     .object({ email: z.string().email(), password: z.string().min(6) })
                     .safeParse(credentials);
