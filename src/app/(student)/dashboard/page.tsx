@@ -1,101 +1,11 @@
-"use client"
+import { useSession } from "next-auth/react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ArrowRight, HelpCircle, Flame, GraduationCap, CheckCircle2, TrendingUp, AlertCircle } from "lucide-react"
-
-// Types
-interface Topic {
-    id: string
-    title: string
-    subject: string
-    priority: "High" | "Medium" | "Low"
-    progress: number
-}
-
-interface Stat {
-    label: string
-    value: string | number
-    icon: React.ElementType
-    trend?: string
-    trendUp?: boolean
-    color: string
-}
-
-interface Strength {
-    id: string
-    title: string
-    mastery: number
-    icon: React.ElementType
-}
-
-// Mock Data
-const weaknessTopics: Topic[] = [
-    {
-        id: "1",
-        title: "Cực trị hàm hợp",
-        subject: "Đại số & Giải tích 12",
-        priority: "High",
-        progress: 45,
-    },
-    {
-        id: "2",
-        title: "Tích phân từng phần",
-        subject: "Đại số & Giải tích 12",
-        priority: "Medium",
-        progress: 60,
-    },
-    {
-        id: "3",
-        title: "Phương trình Logarit",
-        subject: "Đại số 12",
-        priority: "Low",
-        progress: 72,
-    },
-]
-
-const stats: Stat[] = [
-    {
-        label: "Điểm trung bình",
-        value: "8.5",
-        icon: GraduationCap,
-        trend: "+12%",
-        trendUp: true,
-        color: "emerald",
-    },
-    {
-        label: "Câu hỏi đã luyện",
-        value: 843,
-        icon: HelpCircle,
-        color: "blue",
-    },
-    {
-        label: "Chuỗi ngày",
-        value: "12 ngày",
-        icon: Flame,
-        color: "orange",
-    },
-]
-
-const strengths: Strength[] = [
-    {
-        id: "1",
-        title: "Hình học không gian",
-        mastery: 92,
-        icon: CheckCircle2,
-    },
-    {
-        id: "2",
-        title: "Hàm số mũ",
-        mastery: 88,
-        icon: TrendingUp,
-    },
-]
+// ... types and mock data ...
 
 export default function DashboardPage() {
+    const { data: session } = useSession()
+    const userName = session?.user?.name || "Bạn"
+
     return (
         <div className="space-y-8 max-w-7xl mx-auto">
             {/* Welcome Banner */}
@@ -104,7 +14,7 @@ export default function DashboardPage() {
                 <div className="absolute bottom-0 right-20 w-32 h-32 bg-white/10 rounded-full translate-y-1/2 blur-2xl"></div>
 
                 <CardContent className="p-8 md:p-12 relative z-10">
-                    <h1 className="text-3xl font-bold mb-2">Chào Minh Anh,</h1>
+                    <h1 className="text-3xl font-bold mb-2">Chào {userName},</h1>
                     <p className="text-emerald-50 text-xl font-medium">Hôm nay bạn muốn chinh phục chủ đề nào?</p>
                 </CardContent>
             </Card>
