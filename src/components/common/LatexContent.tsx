@@ -20,7 +20,10 @@ const LatexContent = memo(({ content, block = false, className }: LatexContentPr
     const parts = content.split(/(\$[^$]+\$)/g);
 
     return (
-        <span className={cn("latex-content", block ? "block" : "inline", className)}>
+        <span
+            className={cn("latex-content", block ? "block" : "inline", className)}
+            style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}
+        >
             {parts.map((part, index) => {
                 if (part.startsWith('$') && part.endsWith('$')) {
                     // Remove $ delimiters
@@ -47,8 +50,13 @@ const LatexContent = memo(({ content, block = false, className }: LatexContentPr
                         );
                     }
                 }
-                // Render regular text
-                return <span key={index}>{part}</span>;
+                // Render regular text, allowing HTML (for images preserved from Word)
+                return (
+                    <span
+                        key={index}
+                        dangerouslySetInnerHTML={{ __html: part }}
+                    />
+                );
             })}
         </span>
     );

@@ -5,30 +5,8 @@ import { cn } from "@/lib/utils"
 import { Flag, Bookmark, X, Check } from "lucide-react"
 import "katex/dist/katex.min.css"
 import katex from "katex"
+import { LatexContent } from "@/components/common/LatexContent"
 
-// Helper to render latex content safely (reused)
-const LatexContent = ({ content }: { content: string }) => {
-    const parts = content.split(/(\$[^$]+\$)/g);
-    return (
-        <span>
-            {parts.map((part, index) => {
-                if (part.startsWith('$') && part.endsWith('$')) {
-                    const math = part.slice(1, -1);
-                    try {
-                        const html = katex.renderToString(math, {
-                            throwOnError: false,
-                            displayMode: false,
-                        });
-                        return <span key={index} dangerouslySetInnerHTML={{ __html: html }} />;
-                    } catch (e) {
-                        return <span key={index} className="text-red-500">{part}</span>;
-                    }
-                }
-                return <span key={index}>{part}</span>;
-            })}
-        </span>
-    );
-};
 
 interface QuestionMainViewProps {
     question: ReviewQuestion
@@ -73,8 +51,7 @@ export function QuestionMainView({ question }: QuestionMainViewProps) {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-8">
-                {/* Question Body */}
-                <div className="mb-8 text-base text-[#0d1c17] leading-relaxed font-medium">
+                <div className="mb-8 text-base text-[#0d1c17] leading-relaxed font-medium" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}>
                     <p className="mb-4"><LatexContent content={question.content} /></p>
                 </div>
 

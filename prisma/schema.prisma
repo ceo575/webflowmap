@@ -55,21 +55,29 @@ model Topic {
 }
 
 model Exam {
-  id          String   @id @default(cuid())
-  title       String
-  duration    Int      // in minutes
-  grade       String?  // e.g., "12", "11"
-  subject     String?  // e.g., "Math", "Physics"
-  teacherId   String
-  topicId     String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  duration      Int      // in minutes
+  grade         String?  // e.g., "12", "11"
+  subject       String?  // e.g., "Math", "Physics"
+  teacherId     String
+  topicId       String?
+  
+  // New fields for exam workflow
+  fullVideoUrl  String?  // Full exam solution video
+  pdfUrl        String?  // PDF attachment
+  tags          String?  // JSON array of tags
+  classes       String?  // JSON array of class IDs
+  isPublic      Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  teacher     User     @relation("TeacherExams", fields: [teacherId], references: [id])
-  topic       Topic?   @relation(fields: [topicId], references: [id])
-  questions   Question[]
-  results     ExamResult[]
+  teacher       User     @relation("TeacherExams", fields: [teacherId], references: [id])
+  topic         Topic?   @relation(fields: [topicId], references: [id])
+  questions     Question[]
+  results       ExamResult[]
 }
 
 model Question {
@@ -82,6 +90,12 @@ model Question {
   explanation   String?      // Detailed solution
   videoUrl      String?
   flowThinking  String?      // JSON string: { identify, method, execution, conclusion }
+  
+  // New fields for question classification
+  chapter       String?      // Chapter name
+  lesson        String?      // Lesson name  
+  problemType   String?      // Problem type classification
+  imageBase64   String?      // Base64 encoded image (temp solution)
   
   // Relations
   exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)

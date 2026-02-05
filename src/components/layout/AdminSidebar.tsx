@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Archive, Users, School, BarChart, Settings, LogOut } from "lucide-react"
+import { LayoutDashboard, Archive, Users, School, BarChart, Settings, LogOut, FilePlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { signOut } from "next-auth/react"
 
@@ -32,6 +32,12 @@ const sidebarItems = [
         icon: BarChart,
         label: "Báo cáo",
         href: "/admin/reports",
+    },
+    {
+        icon: FilePlus,
+        label: "Tạo đề thi",
+        href: "/admin/exam/create",
+        isAction: true
     },
 ]
 
@@ -63,8 +69,19 @@ export function AdminSidebar() {
                     {/* Navigation */}
                     <nav className="flex flex-col gap-2">
                         {sidebarItems.map((item) => {
-                            // Mock active state for "Kho đề thi" / "create" page
-                            const isActive = item.href === "/admin/exam" && pathname.includes("/exam");
+                            const Icon = item.icon;
+                            // Exact match for dashboard, prefix match for others
+                            const isActive = item.href === "/admin/dashboard"
+                                ? pathname === item.href
+                                : pathname.startsWith(item.href);
+
+                            const isActionButton = (item as any).isAction;
+
+                            // If we're on a subpage of exam (like create), don't highlight the main "Kho đề thi" 
+                            // if there's a more specific match (the action button)
+                            const shouldHighlight = isActionButton
+                                ? isActive
+                                : (isActive && !pathname.includes("/create"));
 
                             return (
                                 <Link
@@ -72,21 +89,27 @@ export function AdminSidebar() {
                                     href={item.href}
                                     className={cn(
                                         "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors group",
-                                        isActive
+                                        shouldHighlight
                                             ? "bg-emerald-50 text-emerald-600"
-                                            : "hover:bg-slate-50 text-slate-600"
+                                            : isActionButton
+                                                ? "bg-emerald-600 text-white hover:bg-emerald-700 mt-2 shadow-sm"
+                                                : "hover:bg-slate-50 text-slate-600"
                                     )}
                                 >
-                                    <item.icon
+                                    <Icon
                                         className={cn(
                                             "w-6 h-6",
-                                            isActive ? "fill-current" : "text-slate-500 group-hover:text-emerald-600"
+                                            shouldHighlight
+                                                ? "fill-current"
+                                                : isActionButton
+                                                    ? "text-white"
+                                                    : "text-slate-500 group-hover:text-emerald-600"
                                         )}
-                                        strokeWidth={isActive ? 2 : 1.5}
+                                        strokeWidth={shouldHighlight ? 2 : 1.5}
                                     />
                                     <span className={cn(
                                         "text-sm font-medium",
-                                        isActive ? "font-bold" : "group-hover:text-emerald-600"
+                                        shouldHighlight || isActionButton ? "font-bold" : "group-hover:text-emerald-600"
                                     )}>
                                         {item.label}
                                     </span>
