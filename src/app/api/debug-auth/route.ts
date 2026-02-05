@@ -6,6 +6,10 @@ export async function GET() {
     try {
         const email = "student@flowmap.com";
         console.log("DEBUG-API: Starting diagnostic for", email);
+        console.log("DEBUG-API: DB URL present:", !!process.env.DATABASE_URL);
+        if (process.env.DATABASE_URL) {
+            console.log("DEBUG-API: DB URL starts with:", process.env.DATABASE_URL.substring(0, 20) + "...");
+        }
 
         const user = await prisma.user.findUnique({ where: { email } });
 
