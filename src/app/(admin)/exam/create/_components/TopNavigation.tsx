@@ -1,0 +1,31 @@
+"use client"
+
+import { ChevronRight, Eye, Save } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+export function TopNavigation() {
+    return (
+        <header className="w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-10 sticky top-0">
+            <div className="px-8 py-5 flex items-center justify-between">
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-slate-400 text-xs font-medium uppercase tracking-wider">
+                        <span>Kho đề thi</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span className="text-[#10b763]">Tạo đề mới</span>
+                    </div>
+                    <h1 className="text-slate-900 text-2xl font-black tracking-tight">Biên soạn đề thi</h1>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" className="flex items-center gap-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-bold">
+                        <Eye className="w-5 h-5" />
+                        <span className="hidden sm:inline">Xem trước</span>
+                    </Button>
+                    <Button className="flex items-center gap-2 bg-[#10b763] hover:bg-[#0d9651] text-white shadow-lg shadow-emerald-500/30 font-bold">
+                        <Save className="w-5 h-5" />
+                        <span>Lưu vào Kho đề thi</span>
+                    </Button>
+                </div>
+            </div>
+        </header>
+    )
+}

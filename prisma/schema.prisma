@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  STUDENT
+}
+
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
+// Models
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  image         String?
+  role          Role      @default(STUDENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  createdExams  Exam[]    @relation("TeacherExams")
+  examResults   ExamResult[]
+  weaknesses    UserWeakness[]
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?  // Self-relation for sub-topics
+  parent      Topic?   @relation("SubTopics", fields: [parentId], references: [id])
+  children    Topic[]  @relation("SubTopics")
+  
+  exams       Exam[]
+  weaknesses  UserWeakness[]
+}
+
+model Exam {
+  id          String   @id @default(cuid())
+  title       String
+  duration    Int      // in minutes
+  grade       String?  // e.g., "12", "11"
+  subject     String?  // e.g., "Math", "Physics"
+  teacherId   String
+  topicId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  teacher     User     @relation("TeacherExams", fields: [teacherId], references: [id])
+  topic       Topic?   @relation(fields: [topicId], references: [id])
+  questions   Question[]
+  results     ExamResult[]
+}
+
+model Question {
+  id            String       @id @default(cuid())
+  examId        String
+  content       String       // LaTeX supported
+  type          QuestionType
+  options       String?      // JSON string: options for MCQ
+  correctAnswer String
+  explanation   String?      // Detailed solution
+  videoUrl      String?
+  flowThinking  String?      // JSON string: { identify, method, execution, conclusion }
+  
+  // Relations
+  exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+}
+
+model ExamResult {
+  id           String   @id @default(cuid())
+  studentId    String
+  examId       String
+  score        Float
+  maxScore     Float    @default(10)
+  answers      String   // JSON string: student answers map
+  aiAnalysis   String?  // AI general feedback
+  chapterScore String?  // JSON string: breakdown by chapter
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  // Relations
+  student      User     @relation(fields: [studentId], references: [id])
+  exam         Exam     @relation(fields: [examId], references: [id])
+}
+
+model UserWeakness {
+  id        String   @id @default(cuid())
+  userId    String
+  topicId   String
+  score     Float    // Competency score (0-100)
+  streak    Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+  topic     Topic    @relation(fields: [topicId], references: [id])
+
+  @@unique([userId, topicId])
+}
