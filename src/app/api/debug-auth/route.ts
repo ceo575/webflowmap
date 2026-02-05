@@ -1,43 +1,47 @@
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-    try {
-        const email = "student@flowmap.com";
-        console.log("DEBUG-API: Starting diagnostic for", email);
-        console.log("DEBUG-API: DB URL present:", !!process.env.DATABASE_URL);
-        if (process.env.DATABASE_URL) {
-            console.log("DEBUG-API: DB URL starts with:", process.env.DATABASE_URL.substring(0, 20) + "...");
+    const results: any[] = [];
+    const password = "8SM6FlRV3TisMtqR";
+    const ref = "arciimidezcwuqihxrcd";
+
+    const tests = [
+        {
+            name: "Pooler Host 0 (Regional)",
+            url: `postgresql://postgres.${ref}:${password}@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true`
+        },
+        {
+            name: "Pooler Host (Simplified)",
+            url: `postgresql://postgres.${ref}:${password}@ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true`
+        },
+        {
+            name: "Direct Host (Standard Port)",
+            url: `postgresql://postgres:${password}@db.${ref}.supabase.co:5432/postgres?sslmode=require`
         }
+    ];
 
-        const user = await prisma.user.findUnique({ where: { email } });
-
-        if (!user) {
-            const allUsers = await prisma.user.findMany({ select: { email: true } });
-            return NextResponse.json({
-                error: "User not found",
-                attempted: email,
-                available: allUsers.map(u => u.email)
+    for (const test of tests) {
+        let prisma: any = null;
+        try {
+            prisma = new PrismaClient({
+                datasources: { db: { url: test.url } },
+                log: ['error']
             });
+            // Use a timeout to prevent hanging
+            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
+            await Promise.race([prisma.$connect(), timeout]);
+
+            results.push({ name: test.name, status: "SUCCESS" });
+            await prisma.$disconnect();
+        } catch (e: any) {
+            results.push({ name: test.name, status: "FAILED", error: e.message.substring(0, 150) });
+            if (prisma) await prisma.$disconnect().catch(() => { });
         }
-
-        const match = await bcrypt.compare("123456", user.password);
-
-        return NextResponse.json({
-            status: "User found",
-            email: user.email,
-            match,
-            passwordHashLength: user.password.length,
-            passwordHashStart: user.password.substring(0, 7) + "...",
-            dbId: user.id
-        });
-    } catch (error: any) {
-        console.error("DEBUG-API: Error:", error);
-        return NextResponse.json({
-            error: "Exception occurred",
-            message: error.message,
-            stack: error.stack?.substring(0, 100)
-        }, { status: 500 });
     }
+
+    return NextResponse.json({
+        results,
+        help: "Copy the SUCCESS url format for your Vercel DATABASE_URL"
+    });
 }
