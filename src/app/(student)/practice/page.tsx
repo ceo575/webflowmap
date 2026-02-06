@@ -8,6 +8,29 @@ import { withLegacyFallback } from "@/lib/prisma-compat";
 
 const SUBJECT_FILTERS = ["Tất cả", "Toán", "Lý", "Hóa", "Tiếng Anh"];
 
+
+type TopicExam = {
+  subject: string | null
+  grade: string | null
+  _count: { questions: number }
+}
+
+type WeaknessItem = {
+  topicId: string
+  score: number
+  topic: {
+    id: string
+    name: string
+    exams: TopicExam[]
+  }
+}
+
+type FallbackTopic = {
+  id: string
+  name: string
+  exams: TopicExam[]
+}
+
 function normalizeSubject(subject: string | null | undefined): string {
   if (!subject) return "Chưa gán môn";
   return subject;
@@ -32,7 +55,7 @@ export default async function PracticePage({
 
   const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
 
-  const weaknesses = await withLegacyFallback(
+  const weaknesses = await withLegacyFallback<WeaknessItem[]>(
     () =>
       prisma.userWeakness.findMany({
         where: { userId },
@@ -83,11 +106,11 @@ export default async function PracticePage({
   );
 
   let cards: PracticeTopicCard[] = weaknesses
-    .map((item) => {
-      const latestExam = item.topic.exams.find((exam) => Boolean(exam.subject)) ?? item.topic.exams[0];
+    .map((item: WeaknessItem) => {
+      const latestExam = item.topic.exams.find((exam: TopicExam) => Boolean(exam.subject)) ?? item.topic.exams[0];
       const subject = normalizeSubject(latestExam?.subject);
       const gradeLabel = latestExam?.grade ?? user?.grade ?? "--";
-      const questionCount = item.topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0);
+      const questionCount = item.topic.exams.reduce((sum: number, exam: TopicExam) => sum + exam._count.questions, 0);
 
       return {
         id: item.topicId,
@@ -102,7 +125,7 @@ export default async function PracticePage({
     .filter((item) => item.questionCount > 0);
 
   if (cards.length === 0) {
-    const fallbackTopics = await withLegacyFallback(
+    const fallbackTopics = await withLegacyFallback<FallbackTopic[]>(
       () =>
         prisma.topic.findMany({
           where: {
@@ -156,9 +179,9 @@ export default async function PracticePage({
     );
 
     cards = fallbackTopics
-      .map((topic) => {
-        const latestExam = topic.exams.find((exam) => Boolean(exam.subject)) ?? topic.exams[0];
-        const questionCount = topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0);
+      .map((topic: FallbackTopic) => {
+        const latestExam = topic.exams.find((exam: TopicExam) => Boolean(exam.subject)) ?? topic.exams[0];
+        const questionCount = topic.exams.reduce((sum: number, exam: TopicExam) => sum + exam._count.questions, 0);
 
         return {
           id: topic.id,

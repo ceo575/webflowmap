@@ -1,6 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { withLegacyFallback } from "@/lib/prisma-compat";
 
+type PoolQuestion = {
+  id: string;
+  options: string | null;
+  correctAnswer: string;
+  level: string | null;
+  explanation: string | null;
+  videoUrl: string | null;
+  content: string;
+  exam: {
+    id: string;
+    subject: string | null;
+    title: string;
+  };
+};
+
 export interface FocusOption {
   id: string;
   content: string;
@@ -100,7 +115,7 @@ async function getQuestionPool(userId: string, topicId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { grade: true } });
   const gradeFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
 
-  const pool = await withLegacyFallback(
+  const pool = await withLegacyFallback<PoolQuestion[]>(
     () => prisma.question.findMany({
       where: {
         type: "MCQ",
@@ -154,14 +169,14 @@ async function getQuestionPool(userId: string, topicId: string) {
     })
   );
 
-  return pool.filter((question) => parseQuestionOptions(question.options).length >= 2);
+  return pool.filter((question: PoolQuestion) => parseQuestionOptions(question.options).length >= 2);
 }
 
 async function pickWeakQuestionIds(userId: string, topicId: string, take: number) {
   const pool = await getQuestionPool(userId, topicId);
   if (!pool.length) return [] as string[];
 
-  const questionIds = pool.map((question) => question.id);
+  const questionIds = pool.map((question: PoolQuestion) => question.id);
 
   const attempts = await prisma.practiceAttempt.findMany({
     where: {
@@ -191,7 +206,7 @@ async function pickWeakQuestionIds(userId: string, topicId: string, take: number
     orderBy: { answeredAt: "desc" },
     take: take,
   });
-  const recentSet = new Set(recentAttempts.map((item) => item.questionId));
+  const recentSet = new Set(recentAttempts.map((item: { questionId: string }) => item.questionId));
 
   const stats = new Map<string, { total: number; correct: number; lastWrong: boolean }>();
   for (const attempt of attempts) {
@@ -203,7 +218,7 @@ async function pickWeakQuestionIds(userId: string, topicId: string, take: number
   }
 
   const ranked = pool
-    .map((question) => {
+    .map((question: PoolQuestion) => {
       const stat = stats.get(question.id);
       const total = stat?.total ?? 0;
       const correct = stat?.correct ?? 0;
@@ -223,9 +238,9 @@ async function pickWeakQuestionIds(userId: string, topicId: string, take: number
         priority,
       };
     })
-    .sort((a, b) => b.priority - a.priority);
+    .sort((a: { priority: number }, b: { priority: number }) => b.priority - a.priority);
 
-  return ranked.slice(0, take).map((item) => item.id);
+  return ranked.slice(0, take).map((item: { id: string }) => item.id);
 }
 
 export async function getSessionSnapshot(userId: string, sessionId: string): Promise<FocusSessionSnapshot | null> {
@@ -255,7 +270,7 @@ export async function getSessionSnapshot(userId: string, sessionId: string): Pro
   if (!session) return null;
 
   const completed = Boolean(session.endedAt || session.completedAt) || session.currentIndex >= session.totalQuestions;
-  const item = completed ? null : session.items.find((entry) => entry.orderIndex === session.currentIndex) ?? null;
+  const item = completed ? null : session.items.find((entry: { orderIndex: number }) => entry.orderIndex === session.currentIndex) ?? null;
 
   let question: FocusQuestionSnapshot | null = null;
   if (item) {
@@ -340,7 +355,7 @@ export async function startOrResumeFocusSession(userId: string, topicId: string)
     };
   }
 
-  const created = await prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx: typeof prisma) => {
     const session = await tx.practiceSession.create({
       data: {
         studentId: userId,
@@ -351,7 +366,7 @@ export async function startOrResumeFocusSession(userId: string, topicId: string)
     });
 
     await tx.practiceSessionItem.createMany({
-      data: selectedQuestionIds.map((questionId, index) => ({
+      data: selectedQuestionIds.map((questionId: string, index: number) => ({
         sessionId: session.id,
         questionId,
         orderIndex: index,

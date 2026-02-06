@@ -82,11 +82,13 @@ export async function POST(
     return NextResponse.json({ success: true, attemptId: attempt.id, score: attempt.score ?? 0 })
   }
 
-  const answerByQuestionId = new Map(attempt.answers.map((answer) => [answer.questionId, answer]))
+  const answerByQuestionId = new Map<string, { id: string; questionId: string; selected: Prisma.JsonValue }>(
+    attempt.answers.map((answer: { id: string; questionId: string; selected: Prisma.JsonValue }) => [answer.questionId, answer])
+  )
   const total = attempt.exam.questions.length || 1
   let correctCount = 0
 
-  const updates = attempt.exam.questions.map((question) => {
+  const updates = attempt.exam.questions.map((question: { id: string; type: QuestionType; correctAnswer: string; options: string | null }) => {
     const answer = answerByQuestionId.get(question.id)
     const correct = isCorrectAnswer(question, answer?.selected)
     if (correct) correctCount += 1

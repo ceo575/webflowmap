@@ -43,7 +43,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     isCorrect = existing.isCorrect;
     earnedScore = existing.isCorrect ? 10 : 0;
   } else {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: typeof prisma) => {
       await tx.practiceAttempt.create({
         data: {
           sessionId,

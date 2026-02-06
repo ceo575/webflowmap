@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
 
         let result
         try {
-            result = await prisma.$transaction(async (tx) => {
+            result = await prisma.$transaction(async (tx: typeof prisma) => {
                 const exam = await tx.exam.create({
                     data: {
                         title: examInfo.title,
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
         } catch (error) {
             if (!isLegacySchemaError(error)) throw error
 
-            result = await prisma.$transaction(async (tx) => {
+            result = await prisma.$transaction(async (tx: typeof prisma) => {
                 const exam = await tx.exam.create({
                     data: {
                         title: examInfo.title,

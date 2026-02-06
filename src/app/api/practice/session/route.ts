@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   const { topicId, questionId, selectedAnswer, isCorrect, totalQuestions, sessionId } = parsedPayload.data;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     let activeSessionId = sessionId ?? null;
 
     if (activeSessionId) {
