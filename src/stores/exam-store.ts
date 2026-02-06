@@ -9,6 +9,7 @@ export interface Question {
     images?: string[] // For placeholders [IMG_0], [IMG_1], etc.
     correctAnswer: string
     explanation?: string
+    solution?: string
     videoUrl?: string
     imageBase64?: string
     chapter?: string
