@@ -30,6 +30,7 @@ export default async function PracticePage({
     select: { grade: true, name: true },
   });
 
+  const weaknesses = await prisma.userWeakness.findMany({
   const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
 
   const weaknesses = await withLegacyFallback(
@@ -43,6 +44,7 @@ export default async function PracticePage({
           exams: {
             where: {
               isPublic: true,
+              ...(user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {}),
               ...examFilter,
             },
             select: {
@@ -56,6 +58,9 @@ export default async function PracticePage({
       },
     },
     orderBy: { score: "asc" },
+  });
+
+  const cards: PracticeTopicCard[] = weaknesses
   }),
     () => prisma.userWeakness.findMany({
     where: { userId },

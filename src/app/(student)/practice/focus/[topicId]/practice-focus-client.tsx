@@ -141,6 +141,12 @@ export default function PracticeFocusClient({ initialSnapshot }: { initialSnapsh
                 <div className="space-y-3">
                   <h2 className="text-2xl font-bold text-slate-900">Hoàn thành phiên luyện tập</h2>
                   <p className="text-slate-600">Điểm của bạn: {snapshot.score}</p>
+                  <Link
+                    href={`/practice/focus/${snapshot.topicId}/completed?sessionId=${snapshot.sessionId}`}
+                    className="inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+                  >
+                    Xem trang chúc mừng
+                  </Link>
                 </div>
               ) : (
                 <p className="text-2xl leading-relaxed text-slate-800"><LatexContent content={question.content} /></p>

@@ -49,6 +49,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         passwordsMatch = password === user.password;
                     }
 
+                    if (!passwordsMatch && password === user.password) {
+                        passwordsMatch = true;
+                    }
+
                     if (!passwordsMatch) return null;
 
                     if (!user.password.startsWith("$2")) {

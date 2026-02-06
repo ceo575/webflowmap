@@ -16,6 +16,31 @@ export async function GET(request: Request) {
   const subject = searchParams.get("subject");
 
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { grade: true } });
+  const weaknesses = await prisma.userWeakness.findMany({
+    where: { userId },
+    include: {
+      topic: {
+        select: {
+          id: true,
+          name: true,
+          exams: {
+            where: {
+              isPublic: true,
+              ...(user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {}),
+            },
+            select: {
+              subject: true,
+              grade: true,
+              _count: { select: { questions: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { score: "asc" },
+  });
+
+  const topics = weaknesses
   const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
 
   const weaknesses = await withLegacyFallback(
@@ -77,6 +102,10 @@ export async function GET(request: Request) {
         questionCount: entry.topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0),
       };
     })
+    .filter((topic) => topic.questionCount > 0)
+    .filter((topic) => (subject ? topic.subject.toLowerCase() === subject.toLowerCase() : true));
+
+  return NextResponse.json({ topics });
     .filter((topic) => topic.questionCount > 0);
 
   if (topics.length === 0) {
