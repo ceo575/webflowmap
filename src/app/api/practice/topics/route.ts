@@ -4,6 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { getPracticeStatus } from "@/lib/practice";
 import { withLegacyFallback } from "@/lib/prisma-compat";
 
+type TopicExam = {
+  subject: string | null;
+  grade: string | null;
+  _count: { questions: number };
+};
+
+type WeaknessEntry = {
+  topicId: string;
+  score: number;
+  topic: {
+    id: string;
+    name: string;
+    exams: TopicExam[];
+  };
+};
+
+type FallbackTopic = {
+  id: string;
+  name: string;
+  exams: TopicExam[];
+};
+
 export async function GET(request: Request) {
   const session = await auth();
 
@@ -18,7 +40,7 @@ export async function GET(request: Request) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { grade: true } });
   const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
 
-  const weaknesses = await withLegacyFallback(
+  const weaknesses = await withLegacyFallback<WeaknessEntry[]>(
     () =>
       prisma.userWeakness.findMany({
         where: { userId },
@@ -64,8 +86,8 @@ export async function GET(request: Request) {
   );
 
   let topics = weaknesses
-    .map((entry) => {
-      const latestExam = entry.topic.exams.find((exam) => Boolean(exam.subject)) ?? entry.topic.exams[0];
+    .map((entry: WeaknessEntry) => {
+      const latestExam = entry.topic.exams.find((exam: TopicExam) => Boolean(exam.subject)) ?? entry.topic.exams[0];
       const normalizedSubject = latestExam?.subject ?? "Chưa gán môn";
       return {
         id: entry.topicId,
@@ -74,13 +96,13 @@ export async function GET(request: Request) {
         grade: latestExam?.grade ?? user?.grade ?? "--",
         mastery: Math.round(entry.score),
         status: getPracticeStatus(entry.score),
-        questionCount: entry.topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0),
+        questionCount: entry.topic.exams.reduce((sum: number, exam: TopicExam) => sum + exam._count.questions, 0),
       };
     })
     .filter((topic) => topic.questionCount > 0);
 
   if (topics.length === 0) {
-    const fallbackTopics = await withLegacyFallback(
+    const fallbackTopics = await withLegacyFallback<FallbackTopic[]>(
       () =>
         prisma.topic.findMany({
           where: {
@@ -128,8 +150,8 @@ export async function GET(request: Request) {
     );
 
     topics = fallbackTopics
-      .map((topic) => {
-        const latestExam = topic.exams.find((exam) => Boolean(exam.subject)) ?? topic.exams[0];
+      .map((topic: FallbackTopic) => {
+        const latestExam = topic.exams.find((exam: TopicExam) => Boolean(exam.subject)) ?? topic.exams[0];
         return {
           id: topic.id,
           title: topic.name,
@@ -137,7 +159,7 @@ export async function GET(request: Request) {
           grade: latestExam?.grade ?? user?.grade ?? "--",
           mastery: 0,
           status: "NEEDS_IMPROVEMENT" as const,
-          questionCount: topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0),
+          questionCount: topic.exams.reduce((sum: number, exam: TopicExam) => sum + exam._count.questions, 0),
         };
       })
       .filter((topic) => topic.questionCount > 0);
