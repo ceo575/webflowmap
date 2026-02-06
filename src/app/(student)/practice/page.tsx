@@ -159,6 +159,7 @@ export default async function PracticePage({
                 </div>
 
                 <Link
+                  href={`/practice/focus/${topic.id}`}
                   href={`/practice/topic/${topic.id}`}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#00c224] px-5 py-3 font-semibold text-white shadow-lg shadow-green-500/20 transition hover:bg-green-600"
                 >
