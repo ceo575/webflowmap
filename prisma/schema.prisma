@@ -46,8 +46,9 @@ model User {
   // Relations
   createdExams  Exam[]    @relation("TeacherExams")
   examResults   ExamResult[]
-  weaknesses    UserWeakness[]
+  weaknesses       UserWeakness[]
   practiceSessions PracticeSession[]
+  examAttempts     ExamAttempt[]
 }
 
 model Topic {
@@ -113,6 +114,7 @@ model Question {
   exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
   practiceAttempts PracticeAttempt[]
   practiceItems    PracticeSessionItem[]
+  examAnswers      ExamAnswer[]
 }
 
 model PracticeSession {
