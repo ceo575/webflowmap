@@ -2,7 +2,20 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { TakeExamClient } from "./take-exam-client"
-import { TakeExamPayload } from "./types"
+import { TakeExamPayload, TakeQuestionType } from "./types"
+
+
+type AttemptAnswer = {
+  questionId: string
+  selected: unknown
+}
+
+type ExamQuestion = {
+  id: string
+  type: TakeQuestionType
+  content: string
+  options: string | null
+}
 
 const parseOptions = (raw: string | null) => {
   if (!raw) return [] as string[]
@@ -58,7 +71,7 @@ export default async function ExamTakePage({ params }: { params: Promise<{ id: s
     redirect("/my-exams")
   }
 
-  const attempt = await prisma.$transaction(async (tx) => {
+  const attempt = await prisma.$transaction(async (tx: typeof prisma) => {
     const existing = await tx.examAttempt.findFirst({
       where: {
         examId: exam.id,
@@ -97,7 +110,10 @@ export default async function ExamTakePage({ params }: { params: Promise<{ id: s
     })
   })
 
-  const initialAnswers = attempt.answers.reduce<Record<string, unknown>>((acc, answer) => {
+  const answers = attempt.answers as AttemptAnswer[]
+  const questions = exam.questions as ExamQuestion[]
+
+  const initialAnswers = answers.reduce((acc: Record<string, unknown>, answer: AttemptAnswer) => {
     acc[answer.questionId] = answer.selected
     return acc
   }, {})
@@ -112,7 +128,7 @@ export default async function ExamTakePage({ params }: { params: Promise<{ id: s
     startedAt: attempt.startedAt.toISOString(),
     submittedAt: attempt.submittedAt ? attempt.submittedAt.toISOString() : null,
     status: attempt.status,
-    questions: exam.questions.map((question, index) => ({
+    questions: questions.map((question: ExamQuestion, index: number) => ({
       id: question.id,
       index: index + 1,
       type: question.type,
