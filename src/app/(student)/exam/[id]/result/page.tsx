@@ -34,6 +34,21 @@ type ResultPageProps = {
   searchParams: Promise<{ attemptId?: string }>
 }
 
+type AttemptQuestion = {
+  id: string
+  chapter: string | null
+}
+
+type AttemptAnswer = {
+  questionId: string
+  isCorrect: boolean
+}
+
+type SubmittedAttempt = {
+  id: string
+  score: number | null
+}
+
 export default async function ExamResultPage({ params, searchParams }: ResultPageProps) {
   const session = await auth()
   const userId = (session?.user as any)?.id as string | undefined
@@ -80,26 +95,29 @@ export default async function ExamResultPage({ params, searchParams }: ResultPag
     redirect(`/exam/${examId}/take`)
   }
 
-  const totalQuestions = attempt.exam.questions.length || 1
-  const correctCount = attempt.answers.filter((answer) => answer.isCorrect).length
+  const questions = attempt.exam.questions as AttemptQuestion[]
+  const answers = attempt.answers as AttemptAnswer[]
+
+  const totalQuestions = questions.length || 1
+  const correctCount = answers.filter((answer) => answer.isCorrect).length
   const accuracy = clampPercent((correctCount / totalQuestions) * 100)
   const score = attempt.score ?? Number(((correctCount / totalQuestions) * 10).toFixed(2))
 
-  const submittedAttempts = await prisma.examAttempt.findMany({
+  const submittedAttempts = (await prisma.examAttempt.findMany({
     where: { examId, status: "SUBMITTED" },
     select: { id: true, score: true },
     orderBy: [{ score: "desc" }, { submittedAt: "asc" }],
-  })
+  })) as SubmittedAttempt[]
 
-  const ranking = Math.max(1, submittedAttempts.findIndex((item) => item.id === attempt.id) + 1)
+  const ranking = Math.max(1, submittedAttempts.findIndex((item: SubmittedAttempt) => item.id === attempt.id) + 1)
 
-  const questionMap = new Map(
-    attempt.exam.questions.map((question) => [question.id, question.chapter || "Chủ đề khác"])
+  const questionMap = new Map<string, string>(
+    questions.map((question: AttemptQuestion) => [question.id, question.chapter || "Chủ đề khác"])
   )
 
   const chapterStats = new Map<string, { total: number; correct: number }>()
 
-  for (const answer of attempt.answers) {
+  for (const answer of answers) {
     const chapter = questionMap.get(answer.questionId) || "Chủ đề khác"
     const current = chapterStats.get(chapter) || { total: 0, correct: 0 }
     current.total += 1
