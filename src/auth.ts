@@ -38,7 +38,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                     if (!user || !user.password) return null;
 
-                    const passwordsMatch = await bcrypt.compare(password, user.password);
+                    let passwordsMatch = false;
+
+                    try {
+                        passwordsMatch = await bcrypt.compare(password, user.password);
+                    } catch {
+                        // Legacy plain-text passwords in older datasets can make bcrypt.compare throw.
+                        // We fallback to plain comparison once, then transparently upgrade to bcrypt hash.
+                        passwordsMatch = password === user.password;
+                    }
+
+                    if (!passwordsMatch && password === user.password) {
+                        passwordsMatch = true;
+                    }
+
+                    if (passwordsMatch && !user.password.startsWith("$2")) {
+                        const upgradedPassword = await bcrypt.hash(password, 10);
+                        await prisma.user.update({
+                            where: { id: user.id },
+                            data: { password: upgradedPassword },
+                        });
+                    }
 
                     if (passwordsMatch) return user;
                 } catch (error) {
