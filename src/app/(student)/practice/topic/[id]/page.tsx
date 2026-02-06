@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { withLegacyFallback } from "@/lib/prisma-compat";
 import { parseOptions, PracticeQuestionItem } from "@/lib/practice";
 import { notFound, redirect } from "next/navigation";
 import PracticeTopicClient from "./PracticeTopicClient";
@@ -19,32 +20,61 @@ export default async function PracticeTopicPage({ params }: { params: Promise<{ 
     select: { grade: true },
   });
 
-  const topic = await prisma.topic.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      name: true,
-      exams: {
-        where: {
-          isPublic: true,
-          ...(user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {}),
-        },
+  const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
+
+  const topic = await withLegacyFallback(
+    () =>
+      prisma.topic.findUnique({
+        where: { id },
         select: {
-          subject: true,
-          questions: {
-            where: { type: "MCQ" },
+          id: true,
+          name: true,
+          exams: {
+            where: {
+              isPublic: true,
+              ...examFilter,
+            },
             select: {
-              id: true,
-              content: true,
-              options: true,
-              correctAnswer: true,
-              explanation: true,
+              subject: true,
+              questions: {
+                where: { type: "MCQ" },
+                select: {
+                  id: true,
+                  content: true,
+                  options: true,
+                  correctAnswer: true,
+                  explanation: true,
+                },
+              },
             },
           },
         },
-      },
-    },
-  });
+      }),
+    () =>
+      prisma.topic.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          exams: {
+            where: examFilter,
+            select: {
+              subject: true,
+              questions: {
+                where: { type: "MCQ" },
+                select: {
+                  id: true,
+                  content: true,
+                  options: true,
+                  correctAnswer: true,
+                  explanation: true,
+                },
+              },
+            },
+          },
+        },
+      })
+  );
 
   if (!topic) {
     notFound();
