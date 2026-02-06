@@ -6,6 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, FileText } from "lucide-react"
 
+type MappedExam = {
+    id: string
+    title: string
+    duration: number
+    subject: string | null
+    grade: string | null
+    tags: string[]
+    isPublished: boolean
+    questionCount: number
+    publishedAt: Date
+}
+
 export default async function MyExamsPage() {
     const session = await auth()
 
@@ -22,76 +34,107 @@ export default async function MyExamsPage() {
 
     const effectiveGrade = studentGrade ?? student?.grade ?? undefined
 
-    const exams = await withLegacyFallback(
-        () =>
-            prisma.exam.findMany({
-                where: {
-                    isPublic: true,
-                    ...(effectiveGrade ? { OR: [{ grade: effectiveGrade }, { grade: null }] } : {}),
-                },
-                select: {
-                    id: true,
-                    title: true,
-                    duration: true,
-                    subject: true,
-                    grade: true,
-                    tags: true,
-                    isPublic: true,
-                    _count: {
-                        select: {
-                            questions: true,
-                        },
-                    },
-                    createdAt: true,
-                    updatedAt: true,
-                },
-                orderBy: { createdAt: "desc" },
-            }),
-        () =>
-            prisma.exam.findMany({
-                where: {
-                    ...(effectiveGrade ? { OR: [{ grade: effectiveGrade }, { grade: null }] } : {}),
-                },
-                select: {
-                    id: true,
-                    title: true,
-                    duration: true,
-                    subject: true,
-                    grade: true,
-                    tags: true,
-                    _count: {
-                        select: {
-                            questions: true,
-                        },
-                    },
-                    createdAt: true,
-                    updatedAt: true,
-                },
-                orderBy: { createdAt: "desc" },
-            })
-    )
-
     const parseTags = (value: string | null) => {
         if (!value) return [] as string[]
         try {
             const parsed = JSON.parse(value)
-            return Array.isArray(parsed) ? parsed : []
+            return Array.isArray(parsed) ? parsed.map((tag) => String(tag)) : []
         } catch {
             return []
         }
     }
 
-    const mappedExams = exams.map((exam: any) => ({
-        id: exam.id,
-        title: exam.title,
-        duration: exam.duration,
-        subject: exam.subject,
-        grade: exam.grade,
-        tags: parseTags(exam.tags),
-        isPublished: (exam as { isPublic?: boolean }).isPublic ?? true,
-        questionCount: exam._count.questions,
-        publishedAt: exam.updatedAt,
-    }))
+    const mappedExams = await withLegacyFallback<MappedExam[]>(
+        async () => {
+            const exams = await prisma.exam.findMany({
+                where: {
+                    isPublic: true,
+                    ...(effectiveGrade ? { OR: [{ grade: effectiveGrade }, { grade: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    duration: true,
+                    subject: true,
+                    grade: true,
+                    tags: true,
+                    isPublic: true,
+                    _count: {
+                        select: {
+                            questions: true,
+                        },
+                    },
+                    updatedAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+            })
+
+            return exams.map((exam: {
+                id: string
+                title: string
+                duration: number
+                subject: string | null
+                grade: string | null
+                tags: string | null
+                isPublic: boolean
+                _count: { questions: number }
+                updatedAt: Date
+            }) => ({
+                id: exam.id,
+                title: exam.title,
+                duration: exam.duration,
+                subject: exam.subject,
+                grade: exam.grade,
+                tags: parseTags(exam.tags),
+                isPublished: exam.isPublic,
+                questionCount: exam._count.questions,
+                publishedAt: exam.updatedAt,
+            }))
+        },
+        async () => {
+            const exams = await prisma.exam.findMany({
+                where: {
+                    ...(effectiveGrade ? { OR: [{ grade: effectiveGrade }, { grade: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    duration: true,
+                    subject: true,
+                    grade: true,
+                    tags: true,
+                    _count: {
+                        select: {
+                            questions: true,
+                        },
+                    },
+                    updatedAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+            })
+
+            return exams.map((exam: {
+                id: string
+                title: string
+                duration: number
+                subject: string | null
+                grade: string | null
+                tags: string | null
+                _count: { questions: number }
+                updatedAt: Date
+            }) => ({
+                id: exam.id,
+                title: exam.title,
+                duration: exam.duration,
+                subject: exam.subject,
+                grade: exam.grade,
+                tags: parseTags(exam.tags),
+                isPublished: true,
+                questionCount: exam._count.questions,
+                publishedAt: exam.updatedAt,
+            }))
+        }
+    )
 
     return (
         <div className="space-y-6">
@@ -108,7 +151,7 @@ export default async function MyExamsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {mappedExams.map((exam: any) => (
+                {mappedExams.map((exam) => (
                     <Card key={exam.id} className="border-slate-200">
                         <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
