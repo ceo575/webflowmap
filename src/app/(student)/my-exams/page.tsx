@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, FileText } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 export default async function MyExamsPage() {
     const session = await auth()
@@ -134,6 +136,11 @@ export default async function MyExamsPage() {
                                 )) : (
                                     <span className="text-xs text-slate-400">Chưa có nhãn</span>
                                 )}
+                            </div>
+                            <div className="pt-2">
+                                <Button asChild className="w-full bg-[#059669] hover:bg-emerald-700 text-white">
+                                    <Link href={`/exam/${exam.id}/take`}>Làm bài thi</Link>
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>

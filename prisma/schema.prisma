@@ -24,6 +24,12 @@ enum QuestionType {
   SHORT_ANSWER
 }
 
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  EXPIRED
+}
+
 // Models
 
 model User {
@@ -41,6 +47,7 @@ model User {
   createdExams  Exam[]    @relation("TeacherExams")
   examResults   ExamResult[]
   weaknesses    UserWeakness[]
+  examAttempts  ExamAttempt[]
   practiceSessions PracticeSession[]
 }
 
@@ -81,6 +88,7 @@ model Exam {
   topic         Topic?   @relation(fields: [topicId], references: [id])
   questions     Question[]
   results       ExamResult[]
+  attempts      ExamAttempt[]
 }
 
 model Question {
@@ -104,6 +112,7 @@ model Question {
   
   // Relations
   exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers       ExamAnswer[]
   practiceAttempts PracticeAttempt[]
   practiceItems    PracticeSessionItem[]
 }
@@ -188,4 +197,39 @@ model UserWeakness {
   topic     Topic    @relation(fields: [topicId], references: [id])
 
   @@unique([userId, topicId])
+}
+
+model ExamAttempt {
+  id              String        @id @default(cuid())
+  examId           String
+  userId           String
+  status           AttemptStatus @default(IN_PROGRESS)
+  startedAt        DateTime      @default(now())
+  submittedAt      DateTime?
+  durationSeconds  Int
+  score            Float?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  exam             Exam          @relation(fields: [examId], references: [id], onDelete: Cascade)
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers          ExamAnswer[]
+
+  @@index([examId, userId, status])
+}
+
+model ExamAnswer {
+  id          String      @id @default(cuid())
+  attemptId   String
+  questionId  String
+  selected    Json?
+  isCorrect   Boolean?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  attempt     ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
 }
