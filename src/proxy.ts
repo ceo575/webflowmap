@@ -11,7 +11,7 @@ export default auth((req) => {
 
     const isAuthRoute = nextUrl.pathname.startsWith('/api/auth') || nextUrl.pathname === '/login';
     const isAdminRoute = nextUrl.pathname.startsWith('/(admin)') || nextUrl.pathname.startsWith('/admin');
-    const isStudentRoute = nextUrl.pathname.startsWith('/(student)') || nextUrl.pathname.startsWith('/student') || nextUrl.pathname.startsWith('/dashboard') || nextUrl.pathname.startsWith('/practice') || nextUrl.pathname.startsWith('/exam');
+    const isStudentRoute = nextUrl.pathname.startsWith('/(student)') || nextUrl.pathname.startsWith('/student') || nextUrl.pathname.startsWith('/dashboard') || nextUrl.pathname.startsWith('/practice') || nextUrl.pathname.startsWith('/exam') || nextUrl.pathname.startsWith('/my-exams') || nextUrl.pathname.startsWith('/profile');
 
     // If on auth route (login), redirect to appropriate dashboard if logged in
     if (isAuthRoute) {
