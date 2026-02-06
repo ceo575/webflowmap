@@ -12,8 +12,14 @@ export default async function MyExamsPage() {
         redirect("/login")
     }
 
-    const studentName = session.user.name || ""
-    const studentGrade = (session.user as any).grade as string | undefined
+    const student = session.user as {
+        id: string
+        name?: string | null
+        grade?: string
+    }
+
+    const studentName = student.name || ""
+    const studentGrade = student.grade
 
     const exams = await prisma.exam.findMany({
         where: {
