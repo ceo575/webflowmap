@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isLegacySchemaError } from '@/lib/prisma-compat'
 import { auth } from '@/auth'
 import { z } from 'zod'
 
@@ -36,24 +37,35 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
-        const updatedExam = await prisma.exam.update({
-            where: { id: parsed.data.examId },
-            data: {
-                isPublic: true,
-            },
-            select: {
-                id: true,
-                isPublic: true,
-                updatedAt: true,
-            },
-        })
+        try {
+            const updatedExam = await prisma.exam.update({
+                where: { id: parsed.data.examId },
+                data: {
+                    isPublic: true,
+                },
+                select: {
+                    id: true,
+                    isPublic: true,
+                    updatedAt: true,
+                },
+            })
 
-        return NextResponse.json({
-            ok: true,
-            examId: updatedExam.id,
-            isPublished: updatedExam.isPublic,
-            publishedAt: updatedExam.updatedAt.toISOString(),
-        })
+            return NextResponse.json({
+                ok: true,
+                examId: updatedExam.id,
+                isPublished: updatedExam.isPublic,
+                publishedAt: updatedExam.updatedAt.toISOString(),
+            })
+        } catch (error) {
+            if (!isLegacySchemaError(error)) throw error
+
+            return NextResponse.json({
+                ok: true,
+                examId: parsed.data.examId,
+                isPublished: false,
+                legacySchema: true,
+            })
+        }
     } catch (error: any) {
         console.error('Error publishing exam:', error)
         return NextResponse.json({ error: error.message || 'Failed to publish exam' }, { status: 500 })

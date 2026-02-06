@@ -1,5 +1,6 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { withLegacyFallback } from "@/lib/prisma-compat"
 import { redirect } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,29 +22,54 @@ export default async function MyExamsPage() {
 
     const effectiveGrade = studentGrade ?? student?.grade ?? undefined
 
-    const exams = await prisma.exam.findMany({
-        where: {
-            isPublic: true,
-            ...(effectiveGrade ? { grade: effectiveGrade } : { id: '__no_grade_match__' }),
-        },
-        select: {
-            id: true,
-            title: true,
-            duration: true,
-            subject: true,
-            grade: true,
-            tags: true,
-            isPublic: true,
-            _count: {
-                select: {
-                    questions: true,
+    const exams = await withLegacyFallback(
+        () =>
+            prisma.exam.findMany({
+                where: {
+                    isPublic: true,
+                    ...(effectiveGrade ? { OR: [{ grade: effectiveGrade }, { grade: null }] } : {}),
                 },
-            },
-            createdAt: true,
-            updatedAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-    })
+                select: {
+                    id: true,
+                    title: true,
+                    duration: true,
+                    subject: true,
+                    grade: true,
+                    tags: true,
+                    isPublic: true,
+                    _count: {
+                        select: {
+                            questions: true,
+                        },
+                    },
+                    createdAt: true,
+                    updatedAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+            }),
+        () =>
+            prisma.exam.findMany({
+                where: {
+                    ...(effectiveGrade ? { OR: [{ grade: effectiveGrade }, { grade: null }] } : {}),
+                },
+                select: {
+                    id: true,
+                    title: true,
+                    duration: true,
+                    subject: true,
+                    grade: true,
+                    tags: true,
+                    _count: {
+                        select: {
+                            questions: true,
+                        },
+                    },
+                    createdAt: true,
+                    updatedAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+            })
+    )
 
     const parseTags = (value: string | null) => {
         if (!value) return [] as string[]
@@ -62,7 +88,7 @@ export default async function MyExamsPage() {
         subject: exam.subject,
         grade: exam.grade,
         tags: parseTags(exam.tags),
-        isPublished: exam.isPublic,
+        isPublished: (exam as { isPublic?: boolean }).isPublic ?? true,
         questionCount: exam._count.questions,
         publishedAt: exam.updatedAt,
     }))

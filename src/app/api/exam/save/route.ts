@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isLegacySchemaError } from '@/lib/prisma-compat'
 import { auth } from '@/auth'
 import { QuestionType } from '@prisma/client'
 import { z } from 'zod'
@@ -112,59 +113,103 @@ export async function POST(req: NextRequest) {
 
         const teacherId = (session.user as any).id
 
-        const result = await prisma.$transaction(async (tx) => {
-            const isPublished = Boolean(examInfo.isPublished ?? examInfo.isPublic)
+        const isPublished = Boolean(examInfo.isPublished ?? examInfo.isPublic)
 
-            const exam = await tx.exam.create({
-                data: {
-                    title: examInfo.title,
-                    duration: examInfo.duration,
-                    grade: examInfo.grade || null,
-                    subject: examInfo.subject || null,
-                    teacherId,
-                    fullVideoUrl: examInfo.fullVideoUrl || null,
-                    pdfUrl: examInfo.pdfUrl || null,
-                    tags: examInfo.tags?.length ? JSON.stringify(examInfo.tags) : null,
-                    classes: examInfo.classes?.length ? JSON.stringify(examInfo.classes) : null,
-                    isPublic: isPublished,
-                },
-            })
+        let result
+        try {
+            result = await prisma.$transaction(async (tx) => {
+                const exam = await tx.exam.create({
+                    data: {
+                        title: examInfo.title,
+                        duration: examInfo.duration,
+                        grade: examInfo.grade || null,
+                        subject: examInfo.subject || null,
+                        teacherId,
+                        fullVideoUrl: examInfo.fullVideoUrl || null,
+                        pdfUrl: examInfo.pdfUrl || null,
+                        tags: examInfo.tags?.length ? JSON.stringify(examInfo.tags) : null,
+                        classes: examInfo.classes?.length ? JSON.stringify(examInfo.classes) : null,
+                        isPublic: isPublished,
+                    },
+                })
 
-            const createManyResult = await tx.question.createMany({
-                data: questions.map((q) => ({
+                const createManyResult = await tx.question.createMany({
+                    data: questions.map((q) => ({
+                        examId: exam.id,
+                        content: q.content,
+                        type: q.type,
+                        options: q.options ? JSON.stringify(q.options) : null,
+                        correctAnswer:
+                            typeof q.correctOptionIndex === 'number'
+                                ? String.fromCharCode(65 + q.correctOptionIndex)
+                                : q.correctAnswer || '',
+                        explanation: q.explanation || q.solution || null,
+                        videoUrl: q.videoUrl || null,
+                        flowThinking: q.flowThinking ? JSON.stringify(q.flowThinking) : null,
+                        chapter: q.chapter || null,
+                        lesson: q.lesson || null,
+                        problemType: q.problemType || null,
+                        level: q.level || null,
+                        tags: q.tags?.length ? JSON.stringify(q.tags) : null,
+                        imageBase64: q.imageBase64 || null,
+                    })),
+                })
+
+                return {
                     examId: exam.id,
-                    content: q.content,
-                    type: q.type,
-                    options: q.options ? JSON.stringify(q.options) : null,
-                    correctAnswer:
-                        typeof q.correctOptionIndex === 'number'
-                            ? String.fromCharCode(65 + q.correctOptionIndex)
-                            : q.correctAnswer || '',
-                    explanation: q.explanation || q.solution || null,
-                    videoUrl: q.videoUrl || null,
-                    flowThinking: q.flowThinking ? JSON.stringify(q.flowThinking) : null,
-                    chapter: q.chapter || null,
-                    lesson: q.lesson || null,
-                    problemType: q.problemType || null,
-                    level: q.level || null,
-                    tags: q.tags?.length ? JSON.stringify(q.tags) : null,
-                    imageBase64: q.imageBase64 || null,
-                })),
+                    isPublished: exam.isPublic,
+                    summary: {
+                        title: exam.title,
+                        duration: exam.duration,
+                        subject: exam.subject,
+                        grade: exam.grade,
+                        tags: exam.tags ? (JSON.parse(exam.tags) as string[]) : [],
+                        questionCount: createManyResult.count,
+                    },
+                }
             })
+        } catch (error) {
+            if (!isLegacySchemaError(error)) throw error
 
-            return {
-                examId: exam.id,
-                isPublished: exam.isPublic,
-                summary: {
-                    title: exam.title,
-                    duration: exam.duration,
-                    subject: exam.subject,
-                    grade: exam.grade,
-                    tags: exam.tags ? (JSON.parse(exam.tags) as string[]) : [],
-                    questionCount: createManyResult.count,
-                },
-            }
-        })
+            result = await prisma.$transaction(async (tx) => {
+                const exam = await tx.exam.create({
+                    data: {
+                        title: examInfo.title,
+                        duration: examInfo.duration,
+                        grade: examInfo.grade || null,
+                        subject: examInfo.subject || null,
+                        teacherId,
+                    },
+                })
+
+                const createManyResult = await tx.question.createMany({
+                    data: questions.map((q) => ({
+                        examId: exam.id,
+                        content: q.content,
+                        type: q.type,
+                        options: q.options ? JSON.stringify(q.options) : null,
+                        correctAnswer:
+                            typeof q.correctOptionIndex === 'number'
+                                ? String.fromCharCode(65 + q.correctOptionIndex)
+                                : q.correctAnswer || '',
+                        explanation: q.explanation || q.solution || null,
+                    })),
+                })
+
+                return {
+                    examId: exam.id,
+                    isPublished,
+                    summary: {
+                        title: exam.title,
+                        duration: exam.duration,
+                        subject: exam.subject,
+                        grade: exam.grade,
+                        tags: examInfo.tags || [],
+                        questionCount: createManyResult.count,
+                    },
+                }
+            })
+        }
 
         return NextResponse.json({ ok: true, ...result })
     } catch (error: any) {
