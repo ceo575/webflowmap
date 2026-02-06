@@ -19,17 +19,15 @@ export default async function MyExamsPage() {
         select: { grade: true, name: true },
     })
 
+    const effectiveGrade = studentGrade ?? student?.grade ?? undefined
+
     const exams = await prisma.exam.findMany({
         where: {
             isPublic: true,
-            ...(studentGrade
+            ...(effectiveGrade
                 ? {
                     OR: [
-                        { grade: studentGrade },
-            ...(student?.grade
-                ? {
-                    OR: [
-                        { grade: student.grade },
+                        { grade: effectiveGrade },
                         { grade: null },
                     ],
                 }
@@ -81,12 +79,8 @@ export default async function MyExamsPage() {
                 <p className="text-slate-500 mt-1">
                     {studentName ? `Xin chào ${studentName},` : ""} danh sách đề thi đã xuất bản phù hợp với lớp của bạn.
                 </p>
-                {studentGrade ? (
-                    <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {studentGrade}</p>
-                    {student?.name ? `Xin chào ${student.name},` : ""} danh sách đề thi đã xuất bản phù hợp với lớp của bạn.
-                </p>
-                {student?.grade ? (
-                    <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {student.grade}</p>
+                {effectiveGrade ? (
+                    <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {effectiveGrade}</p>
                 ) : (
                     <p className="text-sm text-amber-600 mt-2">Tài khoản chưa có thông tin lớp, đang hiển thị tất cả đề thi công khai.</p>
                 )}
