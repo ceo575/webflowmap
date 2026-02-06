@@ -86,11 +86,6 @@ export default function PracticeFocusClient({ initialSnapshot }: { initialSnapsh
       const response = await fetch(`/api/practice/focus/${snapshot.sessionId}/next`, { method: "POST" });
       if (!response.ok) throw new Error("Không thể tải câu tiếp theo.");
       const nextSnapshot = (await response.json()) as FocusSessionSnapshot;
-      if (nextSnapshot.completed) {
-        window.location.href = `/practice/focus/${nextSnapshot.topicId}/completed?sessionId=${nextSnapshot.sessionId}`;
-        return;
-      }
-
       setSnapshot(nextSnapshot);
       setSelectedOptionIndex(null);
       setSubmitResult(null);

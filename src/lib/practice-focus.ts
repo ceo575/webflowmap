@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { withLegacyFallback } from "@/lib/prisma-compat";
 
 export interface FocusOption {
   id: string;
@@ -124,6 +125,61 @@ async function getQuestionPool(userId: string, topicId: string) {
       },
     },
   });
+  const gradeFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
+
+  const pool = await withLegacyFallback(
+    () => prisma.question.findMany({
+      where: {
+        type: "MCQ",
+        exam: {
+          isPublic: true,
+          topicId,
+          ...gradeFilter,
+        },
+      },
+      select: {
+        id: true,
+        options: true,
+        correctAnswer: true,
+        level: true,
+        explanation: true,
+        videoUrl: true,
+        content: true,
+        exam: {
+          select: {
+            id: true,
+            subject: true,
+            title: true,
+          },
+        },
+      },
+    }),
+    () => prisma.question.findMany({
+      where: {
+        type: "MCQ",
+        exam: {
+          topicId,
+          ...gradeFilter,
+        },
+      },
+      select: {
+        id: true,
+        options: true,
+        correctAnswer: true,
+        level: true,
+        explanation: true,
+        videoUrl: true,
+        content: true,
+        exam: {
+          select: {
+            id: true,
+            subject: true,
+            title: true,
+          },
+        },
+      },
+    })
+  );
 
   return pool.filter((question) => parseQuestionOptions(question.options).length >= 2);
 }
