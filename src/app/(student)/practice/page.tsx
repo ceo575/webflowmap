@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AlertTriangle, PlayCircle, TrendingUp, Trophy } from "lucide-react";
 import { getPracticeStatus, PracticeTopicCard } from "@/lib/practice";
+import type { Prisma } from "@prisma/client";
 
 const SUBJECT_FILTERS = ["Tất cả", "Toán", "Lý", "Hóa", "Tiếng Anh"];
 
@@ -29,7 +30,23 @@ export default async function PracticePage({
     select: { grade: true, name: true },
   });
 
-  let weaknesses: Awaited<ReturnType<typeof prisma.userWeakness.findMany>> = [];
+  let weaknesses: Prisma.UserWeaknessGetPayload<{
+    include: {
+      topic: {
+        select: {
+          id: true;
+          name: true;
+          exams: {
+            select: {
+              subject: true;
+              grade: true;
+              _count: { select: { questions: true } };
+            };
+          };
+        };
+      };
+    };
+  }>[] = [];
 
   try {
     weaknesses = await prisma.userWeakness.findMany({
