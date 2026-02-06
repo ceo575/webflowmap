@@ -32,6 +32,7 @@ model User {
   password      String
   name          String?
   image         String?
+  grade         String?
   role          Role      @default(STUDENT)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -40,6 +41,7 @@ model User {
   createdExams  Exam[]    @relation("TeacherExams")
   examResults   ExamResult[]
   weaknesses    UserWeakness[]
+  practiceSessions PracticeSession[]
 }
 
 model Topic {
@@ -52,6 +54,7 @@ model Topic {
   
   exams       Exam[]
   weaknesses  UserWeakness[]
+  practiceSessions PracticeSession[]
 }
 
 model Exam {
@@ -101,6 +104,38 @@ model Question {
   
   // Relations
   exam          Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  practiceAttempts PracticeAttempt[]
+}
+
+model PracticeSession {
+  id            String   @id @default(cuid())
+  studentId     String
+  topicId       String
+  totalQuestions Int
+  correctCount  Int      @default(0)
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  student       User     @relation(fields: [studentId], references: [id])
+  topic         Topic    @relation(fields: [topicId], references: [id])
+  attempts      PracticeAttempt[]
+
+  @@index([studentId, topicId])
+}
+
+model PracticeAttempt {
+  id              String   @id @default(cuid())
+  sessionId       String
+  questionId      String
+  selectedAnswer  String
+  isCorrect       Boolean
+  answeredAt      DateTime @default(now())
+
+  session         PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question        Question        @relation(fields: [questionId], references: [id])
+
+  @@unique([sessionId, questionId])
+  @@index([questionId])
 }
 
 model ExamResult {

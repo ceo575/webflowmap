@@ -14,6 +14,10 @@ export default async function MyExamsPage() {
 
     const studentName = session.user.name || ""
     const studentGrade = (session.user as any).grade as string | undefined
+    const student = await prisma.user.findUnique({
+        where: { id: (session.user as any).id },
+        select: { grade: true, name: true },
+    })
 
     const exams = await prisma.exam.findMany({
         where: {
@@ -22,6 +26,10 @@ export default async function MyExamsPage() {
                 ? {
                     OR: [
                         { grade: studentGrade },
+            ...(student?.grade
+                ? {
+                    OR: [
+                        { grade: student.grade },
                         { grade: null },
                     ],
                 }
@@ -75,6 +83,10 @@ export default async function MyExamsPage() {
                 </p>
                 {studentGrade ? (
                     <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {studentGrade}</p>
+                    {student?.name ? `Xin chào ${student.name},` : ""} danh sách đề thi đã xuất bản phù hợp với lớp của bạn.
+                </p>
+                {student?.grade ? (
+                    <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {student.grade}</p>
                 ) : (
                     <p className="text-sm text-amber-600 mt-2">Tài khoản chưa có thông tin lớp, đang hiển thị tất cả đề thi công khai.</p>
                 )}
