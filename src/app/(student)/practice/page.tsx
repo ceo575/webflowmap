@@ -4,113 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { AlertTriangle, PlayCircle, TrendingUp, Trophy } from "lucide-react";
 import { getPracticeStatus, PracticeTopicCard } from "@/lib/practice";
+import { withLegacyFallback } from "@/lib/prisma-compat";
 
 const SUBJECT_FILTERS = ["Tất cả", "Toán", "Lý", "Hóa", "Tiếng Anh"];
 
 function normalizeSubject(subject: string | null | undefined): string {
   if (!subject) return "Chưa gán môn";
   return subject;
-}
-
-async function getStudentProfile(userId: string) {
-  try {
-    return await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, grade: true },
-    });
-  } catch {
-    return await prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true },
-    });
-  }
-}
-
-async function getPracticeCards(userId: string, grade?: string | null): Promise<PracticeTopicCard[]> {
-  try {
-    const weaknesses = await prisma.userWeakness.findMany({
-      where: { userId },
-      include: {
-        topic: {
-          select: {
-            id: true,
-            name: true,
-            exams: {
-              where: {
-                isPublic: true,
-                ...(grade ? { OR: [{ grade }, { grade: null }] } : {}),
-              },
-              select: {
-                subject: true,
-                grade: true,
-                _count: { select: { questions: true } },
-              },
-              orderBy: { createdAt: "desc" },
-            },
-          },
-        },
-      },
-      orderBy: { score: "asc" },
-    });
-
-    return weaknesses
-      .map((item: any) => {
-        const latestExam = item.topic.exams.find((exam: any) => Boolean(exam.subject)) ?? item.topic.exams[0];
-        const subject = normalizeSubject(latestExam?.subject);
-        const gradeLabel = latestExam?.grade ?? grade ?? "--";
-        const questionCount = item.topic.exams.reduce((sum: number, exam: any) => sum + exam._count.questions, 0);
-
-        return {
-          id: item.topicId,
-          title: item.topic.name,
-          subject,
-          gradeLabel,
-          mastery: Math.max(0, Math.min(100, Math.round(item.score))),
-          status: getPracticeStatus(item.score),
-          questionCount,
-        };
-      })
-      .filter((item: any) => item.questionCount > 0);
-  } catch {
-    const exams = await prisma.exam.findMany({
-      where: {
-        isPublic: true,
-        topicId: { not: null },
-        ...(grade ? { OR: [{ grade }, { grade: null }] } : {}),
-      },
-      select: {
-        topicId: true,
-        topic: { select: { id: true, name: true } },
-        subject: true,
-        grade: true,
-        _count: { select: { questions: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const byTopic = new Map<string, PracticeTopicCard>();
-
-    for (const exam of exams) {
-      if (!exam.topicId || !exam.topic) continue;
-      const existing = byTopic.get(exam.topicId);
-
-      if (!existing) {
-        byTopic.set(exam.topicId, {
-          id: exam.topicId,
-          title: exam.topic.name,
-          subject: normalizeSubject(exam.subject),
-          gradeLabel: exam.grade ?? grade ?? "--",
-          mastery: 50,
-          status: "IMPROVING",
-          questionCount: exam._count.questions,
-        });
-      } else {
-        existing.questionCount += exam._count.questions;
-      }
-    }
-
-    return Array.from(byTopic.values());
-  }
 }
 
 export default async function PracticePage({
@@ -125,8 +25,153 @@ export default async function PracticePage({
   }
 
   const userId = (session.user as any).id as string;
-  const user = await getStudentProfile(userId);
-  const cards = await getPracticeCards(userId, (user as any)?.grade);
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { grade: true, name: true },
+  });
+
+  const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
+
+  const weaknesses = await withLegacyFallback(
+    () =>
+      prisma.userWeakness.findMany({
+        where: { userId },
+        include: {
+          topic: {
+            select: {
+              id: true,
+              name: true,
+              exams: {
+                where: {
+                  isPublic: true,
+                  ...examFilter,
+                },
+                select: {
+                  subject: true,
+                  grade: true,
+                  _count: { select: { questions: true } },
+                },
+                orderBy: { createdAt: "desc" },
+              },
+            },
+          },
+        },
+        orderBy: { score: "asc" },
+      }),
+    () =>
+      prisma.userWeakness.findMany({
+        where: { userId },
+        include: {
+          topic: {
+            select: {
+              id: true,
+              name: true,
+              exams: {
+                where: examFilter,
+                select: {
+                  subject: true,
+                  grade: true,
+                  _count: { select: { questions: true } },
+                },
+                orderBy: { createdAt: "desc" },
+              },
+            },
+          },
+        },
+        orderBy: { score: "asc" },
+      })
+  );
+
+  let cards: PracticeTopicCard[] = weaknesses
+    .map((item) => {
+      const latestExam = item.topic.exams.find((exam) => Boolean(exam.subject)) ?? item.topic.exams[0];
+      const subject = normalizeSubject(latestExam?.subject);
+      const gradeLabel = latestExam?.grade ?? user?.grade ?? "--";
+      const questionCount = item.topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0);
+
+      return {
+        id: item.topicId,
+        title: item.topic.name,
+        subject,
+        gradeLabel,
+        mastery: Math.max(0, Math.min(100, Math.round(item.score))),
+        status: getPracticeStatus(item.score),
+        questionCount,
+      };
+    })
+    .filter((item) => item.questionCount > 0);
+
+  if (cards.length === 0) {
+    const fallbackTopics = await withLegacyFallback(
+      () =>
+        prisma.topic.findMany({
+          where: {
+            exams: {
+              some: {
+                isPublic: true,
+                ...examFilter,
+              },
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            exams: {
+              where: {
+                isPublic: true,
+                ...examFilter,
+              },
+              select: {
+                subject: true,
+                grade: true,
+                _count: { select: { questions: true } },
+              },
+              orderBy: { createdAt: "desc" },
+            },
+          },
+          orderBy: { name: "asc" },
+        }),
+      () =>
+        prisma.topic.findMany({
+          where: {
+            exams: {
+              some: examFilter,
+            },
+          },
+          select: {
+            id: true,
+            name: true,
+            exams: {
+              where: examFilter,
+              select: {
+                subject: true,
+                grade: true,
+                _count: { select: { questions: true } },
+              },
+              orderBy: { createdAt: "desc" },
+            },
+          },
+          orderBy: { name: "asc" },
+        })
+    );
+
+    cards = fallbackTopics
+      .map((topic) => {
+        const latestExam = topic.exams.find((exam) => Boolean(exam.subject)) ?? topic.exams[0];
+        const questionCount = topic.exams.reduce((sum, exam) => sum + exam._count.questions, 0);
+
+        return {
+          id: topic.id,
+          title: topic.name,
+          subject: normalizeSubject(latestExam?.subject),
+          gradeLabel: latestExam?.grade ?? user?.grade ?? "--",
+          mastery: 0,
+          status: "NEEDS_IMPROVEMENT" as const,
+          questionCount,
+        };
+      })
+      .filter((item) => item.questionCount > 0);
+  }
 
   const params = await searchParams;
   const selectedSubject = params.subject || "Tất cả";
