@@ -21,35 +21,51 @@ export default async function MyExamsPage() {
 
     const effectiveGrade = studentGrade ?? student?.grade ?? undefined
 
-    const exams = await prisma.exam.findMany({
-        where: {
-            isPublic: true,
-            ...(effectiveGrade
-                ? {
-                    OR: [
-                        { grade: effectiveGrade },
-                        { grade: null },
-                    ],
-                }
-                : {}),
-        },
-        select: {
-            id: true,
-            title: true,
-            duration: true,
-            subject: true,
-            grade: true,
-            tags: true,
-            isPublic: true,
-            _count: {
-                select: {
-                    questions: true,
-                },
+    let exams: Array<{
+        id: string
+        title: string
+        duration: number
+        subject: string | null
+        grade: string | null
+        tags: string | null
+        isPublic: boolean
+        _count: { questions: number }
+        createdAt: Date
+    }> = []
+
+    try {
+        exams = await prisma.exam.findMany({
+            where: {
+                isPublic: true,
+                ...(effectiveGrade
+                    ? {
+                        OR: [
+                            { grade: effectiveGrade },
+                            { grade: null },
+                        ],
+                    }
+                    : {}),
             },
-            createdAt: true,
-        },
-        orderBy: { createdAt: "desc" },
-    })
+            select: {
+                id: true,
+                title: true,
+                duration: true,
+                subject: true,
+                grade: true,
+                tags: true,
+                isPublic: true,
+                _count: {
+                    select: {
+                        questions: true,
+                    },
+                },
+                createdAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+        })
+    } catch (error) {
+        console.error("[MyExamsPage] Failed to query exams", error)
+    }
 
     const parseTags = (value: string | null) => {
         if (!value) return [] as string[]
