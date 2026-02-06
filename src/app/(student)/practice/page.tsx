@@ -30,59 +30,56 @@ export default async function PracticePage({
     select: { grade: true, name: true },
   });
 
-  const weaknesses = await prisma.userWeakness.findMany({
   const examFilter = user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {};
 
   const weaknesses = await withLegacyFallback(
-    () => prisma.userWeakness.findMany({
-    where: { userId },
-    include: {
-      topic: {
-        select: {
-          id: true,
-          name: true,
-          exams: {
-            where: {
-              isPublic: true,
-              ...(user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {}),
-              ...examFilter,
-            },
+    () =>
+      prisma.userWeakness.findMany({
+        where: { userId },
+        include: {
+          topic: {
             select: {
-              subject: true,
-              grade: true,
-              _count: { select: { questions: true } },
+              id: true,
+              name: true,
+              exams: {
+                where: {
+                  isPublic: true,
+                  ...examFilter,
+                },
+                select: {
+                  subject: true,
+                  grade: true,
+                  _count: { select: { questions: true } },
+                },
+                orderBy: { createdAt: "desc" },
+              },
             },
-            orderBy: { createdAt: "desc" },
           },
         },
-      },
-    },
-    orderBy: { score: "asc" },
-  });
-
-  const cards: PracticeTopicCard[] = weaknesses
-  }),
-    () => prisma.userWeakness.findMany({
-    where: { userId },
-    include: {
-      topic: {
-        select: {
-          id: true,
-          name: true,
-          exams: {
-            where: examFilter,
+        orderBy: { score: "asc" },
+      }),
+    () =>
+      prisma.userWeakness.findMany({
+        where: { userId },
+        include: {
+          topic: {
             select: {
-              subject: true,
-              grade: true,
-              _count: { select: { questions: true } },
+              id: true,
+              name: true,
+              exams: {
+                where: examFilter,
+                select: {
+                  subject: true,
+                  grade: true,
+                  _count: { select: { questions: true } },
+                },
+                orderBy: { createdAt: "desc" },
+              },
             },
-            orderBy: { createdAt: "desc" },
           },
         },
-      },
-    },
-    orderBy: { score: "asc" },
-  })
+        orderBy: { score: "asc" },
+      })
   );
 
   let cards: PracticeTopicCard[] = weaknesses
@@ -106,54 +103,56 @@ export default async function PracticePage({
 
   if (cards.length === 0) {
     const fallbackTopics = await withLegacyFallback(
-      () => prisma.topic.findMany({
-      where: {
-        exams: {
-          some: {
-            isPublic: true,
-            ...examFilter,
-          },
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        exams: {
+      () =>
+        prisma.topic.findMany({
           where: {
-            isPublic: true,
-            ...examFilter,
+            exams: {
+              some: {
+                isPublic: true,
+                ...examFilter,
+              },
+            },
           },
           select: {
-            subject: true,
-            grade: true,
-            _count: { select: { questions: true } },
+            id: true,
+            name: true,
+            exams: {
+              where: {
+                isPublic: true,
+                ...examFilter,
+              },
+              select: {
+                subject: true,
+                grade: true,
+                _count: { select: { questions: true } },
+              },
+              orderBy: { createdAt: "desc" },
+            },
           },
-          orderBy: { createdAt: "desc" },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
-      () => prisma.topic.findMany({
-      where: {
-        exams: {
-          some: examFilter,
-        },
-      },
-      select: {
-        id: true,
-        name: true,
-        exams: {
-          where: examFilter,
+          orderBy: { name: "asc" },
+        }),
+      () =>
+        prisma.topic.findMany({
+          where: {
+            exams: {
+              some: examFilter,
+            },
+          },
           select: {
-            subject: true,
-            grade: true,
-            _count: { select: { questions: true } },
+            id: true,
+            name: true,
+            exams: {
+              where: examFilter,
+              select: {
+                subject: true,
+                grade: true,
+                _count: { select: { questions: true } },
+              },
+              orderBy: { createdAt: "desc" },
+            },
           },
-          orderBy: { createdAt: "desc" },
-        },
-      },
-      orderBy: { name: "asc" },
-    })
+          orderBy: { name: "asc" },
+        })
     );
 
     cards = fallbackTopics
