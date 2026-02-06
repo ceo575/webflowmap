@@ -12,22 +12,23 @@ export default async function MyExamsPage() {
         redirect("/login")
     }
 
-    const student = session.user as {
-        id: string
-        name?: string | null
-        grade?: string
-    }
+    const studentProfile = await prisma.user.findUnique({
+        where: { id: (session.user as any).id },
+        select: { name: true },
+    })
 
-    const studentName = student.name || ""
-    const studentGrade = student.grade
+    const student = {
+        name: studentProfile?.name || session.user.name || "",
+        grade: (session.user as any).grade as string | undefined,
+    }
 
     const exams = await prisma.exam.findMany({
         where: {
             isPublic: true,
-            ...(studentGrade
+            ...(student.grade
                 ? {
                     OR: [
-                        { grade: studentGrade },
+                        { grade: student.grade },
                         { grade: null },
                     ],
                 }
@@ -77,10 +78,10 @@ export default async function MyExamsPage() {
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">Bài thi của tôi</h1>
                 <p className="text-slate-500 mt-1">
-                    {studentName ? `Xin chào ${studentName},` : ""} danh sách đề thi đã xuất bản phù hợp với tài khoản của bạn.
+                    {student.name ? `Xin chào ${student.name},` : ""} danh sách đề thi đã xuất bản phù hợp với tài khoản của bạn.
                 </p>
-                {studentGrade ? (
-                    <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {studentGrade}</p>
+                {student.grade ? (
+                    <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {student.grade}</p>
                 ) : (
                     <p className="text-sm text-amber-600 mt-2">Tài khoản chưa có thông tin lớp, đang hiển thị tất cả đề thi công khai.</p>
                 )}
