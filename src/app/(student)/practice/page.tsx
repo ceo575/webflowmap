@@ -29,30 +29,36 @@ export default async function PracticePage({
     select: { grade: true, name: true },
   });
 
-  const weaknesses = await prisma.userWeakness.findMany({
-    where: { userId },
-    include: {
-      topic: {
-        select: {
-          id: true,
-          name: true,
-          exams: {
-            where: {
-              isPublic: true,
-              ...(user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {}),
+  let weaknesses: Awaited<ReturnType<typeof prisma.userWeakness.findMany>> = [];
+
+  try {
+    weaknesses = await prisma.userWeakness.findMany({
+      where: { userId },
+      include: {
+        topic: {
+          select: {
+            id: true,
+            name: true,
+            exams: {
+              where: {
+                isPublic: true,
+                ...(user?.grade ? { OR: [{ grade: user.grade }, { grade: null }] } : {}),
+              },
+              select: {
+                subject: true,
+                grade: true,
+                _count: { select: { questions: true } },
+              },
+              orderBy: { createdAt: "desc" },
             },
-            select: {
-              subject: true,
-              grade: true,
-              _count: { select: { questions: true } },
-            },
-            orderBy: { createdAt: "desc" },
           },
         },
       },
-    },
-    orderBy: { score: "asc" },
-  });
+      orderBy: { score: "asc" },
+    });
+  } catch (error) {
+    console.error("[PracticePage] Failed to load practice topics", error);
+  }
 
   const cards: PracticeTopicCard[] = weaknesses
     .map((item) => {
