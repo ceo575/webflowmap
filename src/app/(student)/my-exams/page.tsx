@@ -24,14 +24,7 @@ export default async function MyExamsPage() {
     const exams = await prisma.exam.findMany({
         where: {
             isPublic: true,
-            ...(effectiveGrade
-                ? {
-                    OR: [
-                        { grade: effectiveGrade },
-                        { grade: null },
-                    ],
-                }
-                : {}),
+            ...(effectiveGrade ? { grade: effectiveGrade } : { id: '__no_grade_match__' }),
         },
         select: {
             id: true,
@@ -47,6 +40,7 @@ export default async function MyExamsPage() {
                 },
             },
             createdAt: true,
+            updatedAt: true,
         },
         orderBy: { createdAt: "desc" },
     })
@@ -70,6 +64,7 @@ export default async function MyExamsPage() {
         tags: parseTags(exam.tags),
         isPublished: exam.isPublic,
         questionCount: exam._count.questions,
+        publishedAt: exam.updatedAt,
     }))
 
     return (
@@ -82,7 +77,7 @@ export default async function MyExamsPage() {
                 {effectiveGrade ? (
                     <p className="text-sm text-emerald-700 mt-2">Đang lọc theo lớp: {effectiveGrade}</p>
                 ) : (
-                    <p className="text-sm text-amber-600 mt-2">Tài khoản chưa có thông tin lớp, đang hiển thị tất cả đề thi công khai.</p>
+                    <p className="text-sm text-amber-600 mt-2">Tài khoản chưa có thông tin lớp, chưa thể hiển thị kho đề thi theo khối lớp.</p>
                 )}
             </div>
 
