@@ -10,6 +10,7 @@ export interface Question {
     images?: string[]
     correctAnswer: string
     explanation?: string
+    solution?: string
     videoUrl?: string
     chapter?: string
     lesson?: string
@@ -405,6 +406,7 @@ function splitQuestions(content: string, imagePool: string[]): Question[] {
             correctAnswer,
             correctOptionIndex,
             explanation: cleanContent(redistributedSolution),
+            solution: cleanContent(redistributedSolution),
             images: questionImages,
             level: "", // Init defaults
             tags: []

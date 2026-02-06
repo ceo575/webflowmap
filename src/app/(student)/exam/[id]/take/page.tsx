@@ -1,58 +1,127 @@
-"use client"
+import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
+import { redirect } from "next/navigation"
+import { TakeExamClient } from "./take-exam-client"
+import { TakeExamPayload } from "./types"
 
-import { useState } from "react"
-import { mockExamData } from "./mockData"
-import { ExamHeader } from "./_components/ExamHeader"
-import { QuestionItem } from "./_components/QuestionItem"
-import { AnswerGrid } from "./_components/AnswerGrid"
+const parseOptions = (raw: string | null) => {
+  if (!raw) return [] as string[]
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map((item) => String(item)) : []
+  } catch {
+    return []
+  }
+}
 
-export default function ExamTakePage() {
-    const [answers, setAnswers] = useState<Record<string, any>>({})
+export default async function ExamTakePage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  const userId = (session?.user as any)?.id as string | undefined
 
-    const handleAnswer = (questionId: number, value: any) => {
-        setAnswers(prev => ({
-            ...prev,
-            [questionId]: value
-        }))
+  if (!userId) {
+    redirect("/login")
+  }
+
+  const { id } = await params
+
+  const exam = await prisma.exam.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      title: true,
+      subject: true,
+      grade: true,
+      duration: true,
+      isPublic: true,
+      questions: {
+        select: {
+          id: true,
+          type: true,
+          content: true,
+          options: true,
+        },
+        orderBy: { id: "asc" },
+      },
+    },
+  })
+
+  if (!exam || !exam.isPublic) {
+    redirect("/my-exams")
+  }
+
+  const studentGrade = (session?.user as any)?.grade as string | undefined
+  if (exam.grade && studentGrade && exam.grade !== studentGrade) {
+    redirect("/my-exams")
+  }
+
+  if (exam.grade && !studentGrade) {
+    redirect("/my-exams")
+  }
+
+  const attempt = await prisma.$transaction(async (tx) => {
+    const existing = await tx.examAttempt.findFirst({
+      where: {
+        examId: exam.id,
+        userId,
+        status: "IN_PROGRESS",
+      },
+      orderBy: { startedAt: "desc" },
+      include: {
+        answers: {
+          select: {
+            questionId: true,
+            selected: true,
+          },
+        },
+      },
+    })
+
+    if (existing) {
+      return existing
     }
 
-    const scrollToQuestion = (id: number) => {
-        const element = document.getElementById(`question-${id}`);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
+    return tx.examAttempt.create({
+      data: {
+        examId: exam.id,
+        userId,
+        durationSeconds: exam.duration * 60,
+      },
+      include: {
+        answers: {
+          select: {
+            questionId: true,
+            selected: true,
+          },
+        },
+      },
+    })
+  })
 
-    return (
-        <div className="h-screen flex flex-col bg-[#f8fafc] overflow-hidden font-sans">
-            <ExamHeader />
+  const initialAnswers = attempt.answers.reduce<Record<string, unknown>>((acc, answer) => {
+    acc[answer.questionId] = answer.selected
+    return acc
+  }, {})
 
-            <main className="flex-1 flex overflow-hidden">
-                {/* Left Column: Questions (Scrollable) */}
-                <div className="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-                    <div className="max-w-3xl mx-auto space-y-8 pb-32">
-                        {mockExamData.map((question) => (
-                            <QuestionItem
-                                key={question.id}
-                                question={question}
-                                userAnswer={answers[question.id]}
-                                onAnswer={(val) => handleAnswer(question.id, val)}
-                            />
-                        ))}
+  const payload: TakeExamPayload = {
+    attemptId: attempt.id,
+    examId: exam.id,
+    title: exam.title,
+    subject: exam.subject,
+    grade: exam.grade,
+    durationMinutes: exam.duration,
+    startedAt: attempt.startedAt.toISOString(),
+    submittedAt: attempt.submittedAt ? attempt.submittedAt.toISOString() : null,
+    status: attempt.status,
+    questions: exam.questions.map((question, index) => ({
+      id: question.id,
+      index: index + 1,
+      type: question.type,
+      content: question.content,
+      options: parseOptions(question.options),
+      points: 1,
+    })),
+    initialAnswers,
+  }
 
-                        <div className="text-center text-slate-400 text-sm">-- Hết danh sách câu hỏi --</div>
-                    </div>
-                </div>
-
-                {/* Right Column: Grid (Sticky) */}
-                <div className="w-[320px] shrink-0 border-l border-slate-200 bg-white shadow-lg z-10 hidden md:block">
-                    <AnswerGrid
-                        questions={mockExamData}
-                        answers={answers}
-                        onNavigate={scrollToQuestion}
-                    />
-                </div>
-            </main>
-        </div>
-    )
+  return <TakeExamClient payload={payload} />
 }
