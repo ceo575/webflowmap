@@ -29,6 +29,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 try {
                     const user = await prisma.user.findFirst({
                         where: { email: { equals: email, mode: "insensitive" } },
+                        select: {
+                            id: true,
+                            email: true,
+                            password: true,
+                            name: true,
+                            image: true,
+                            role: true,
+                        },
                     });
 
                     if (!user || !user.password) return null;
@@ -39,10 +47,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         passwordsMatch = await bcrypt.compare(password, user.password);
                     } catch {
                         passwordsMatch = password === user.password;
-                    }
-
-                    if (!passwordsMatch && password === user.password) {
-                        passwordsMatch = true;
                     }
 
                     if (!passwordsMatch) return null;

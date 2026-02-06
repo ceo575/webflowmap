@@ -125,6 +125,20 @@ model PracticeSession {
   topic          Topic    @relation(fields: [topicId], references: [id])
   attempts       PracticeAttempt[]
   items          PracticeSessionItem[]
+}
+
+model PracticeSession {
+  id            String   @id @default(cuid())
+  studentId     String
+  topicId       String
+  totalQuestions Int
+  correctCount  Int      @default(0)
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  student       User     @relation(fields: [studentId], references: [id])
+  topic         Topic    @relation(fields: [topicId], references: [id])
+  attempts      PracticeAttempt[]
 
   @@index([studentId, topicId])
 }
