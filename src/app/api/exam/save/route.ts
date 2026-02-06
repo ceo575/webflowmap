@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         const teacherId = (session.user as any).id
 
         // Use Prisma transaction to ensure atomicity
-        const result = await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx: any) => {
             // 1. Create Exam
             const isPublished = Boolean(examInfo.isPublished ?? examInfo.isPublic)
 

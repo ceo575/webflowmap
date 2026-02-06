@@ -57,7 +57,7 @@ export default async function MyExamsPage() {
         }
     }
 
-    const mappedExams = exams.map((exam) => ({
+    const mappedExams = exams.map((exam: any) => ({
         id: exam.id,
         title: exam.title,
         duration: exam.duration,
@@ -83,7 +83,7 @@ export default async function MyExamsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {mappedExams.map((exam) => (
+                {mappedExams.map((exam: any) => (
                     <Card key={exam.id} className="border-slate-200">
                         <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
