@@ -4,48 +4,31 @@ import { auth } from '@/auth'
 import { QuestionType } from '@prisma/client'
 import { z } from 'zod'
 
-const optionSchema = z.union([
-    z.string().trim().min(1),
-    z.object({
-        content: z.string().trim().min(1),
-        text: z.string().trim().optional(),
-        label: z.string().trim().optional(),
-    }),
-])
-
-const questionSchema = z
-    .object({
-        content: z.string().trim().optional(),
-        questionText: z.string().trim().optional(),
-        type: z.nativeEnum(QuestionType),
-        options: z.array(optionSchema).optional(),
-        correctOptionIndex: z.number().int().min(0).max(3).optional(),
-        correctAnswer: z.string().optional().default(''),
-        explanation: z.string().optional().nullable(),
-        solution: z.string().optional().nullable(),
-        videoUrl: z.string().url('Invalid video link format').optional().or(z.literal('')).nullable(),
-        videoLink: z.string().url('Invalid video link format').optional().or(z.literal('')).nullable(),
-        chapter: z.string().optional().nullable(),
-        lesson: z.string().optional().nullable(),
-        problemType: z.string().optional().nullable(),
-        topic: z.string().optional().nullable(),
-        skill: z.string().optional().nullable(),
-        level: z.string().optional().nullable(),
-        flowThinking: z
-            .object({
-                identify: z.string(),
-                method: z.string(),
-                execution: z.string(),
-                conclusion: z.string(),
-            })
-            .optional()
-            .nullable(),
-        tags: z.array(z.string()).optional().nullable(),
-        imageBase64: z.string().optional().nullable(),
-    })
-    .refine((value) => Boolean(value.content || value.questionText), {
-        message: 'Question content is required',
-    })
+const questionSchema = z.object({
+    content: z.string().trim().min(1, 'Question content is required'),
+    type: z.nativeEnum(QuestionType),
+    options: z.array(z.string().trim().min(1)).optional(),
+    correctOptionIndex: z.number().int().min(0).max(3).optional(),
+    correctAnswer: z.string().optional().default(''),
+    explanation: z.string().optional().nullable(),
+    solution: z.string().optional().nullable(),
+    videoUrl: z.string().url('Invalid video link format').optional().or(z.literal('')).nullable(),
+    chapter: z.string().optional().nullable(),
+    lesson: z.string().optional().nullable(),
+    problemType: z.string().optional().nullable(),
+    level: z.string().optional().nullable(),
+    flowThinking: z
+        .object({
+            identify: z.string(),
+            method: z.string(),
+            execution: z.string(),
+            conclusion: z.string(),
+        })
+        .optional()
+        .nullable(),
+    tags: z.array(z.string()).optional().nullable(),
+    imageBase64: z.string().optional().nullable(),
+})
 
 const payloadSchema = z.object({
     examInfo: z
@@ -69,14 +52,6 @@ const payloadSchema = z.object({
     tags: z.array(z.string()).optional(),
     questions: z.array(questionSchema).min(1, 'At least one question is required'),
 })
-
-function normalizeOptions(options?: z.infer<typeof optionSchema>[]) {
-    if (!options) return undefined
-    return options.map((option) => {
-        if (typeof option === 'string') return option
-        return option.content || option.text || ''
-    })
-}
 
 function normalizePayload(body: unknown) {
     const parsed = payloadSchema.safeParse(body)
@@ -103,20 +78,10 @@ function normalizePayload(body: unknown) {
             isPublic: false,
         }
 
-    const normalizedQuestions = data.questions.map((q) => ({
-        ...q,
-        content: q.content || q.questionText || '',
-        options: normalizeOptions(q.options),
-        videoUrl: q.videoUrl || q.videoLink || null,
-        chapter: q.chapter || q.topic || null,
-        lesson: q.lesson || q.skill || null,
-        tags: q.tags || [],
-    }))
-
     return {
         ok: true as const,
         examInfo: normalizedExamInfo,
-        questions: normalizedQuestions,
+        questions: data.questions,
     }
 }
 
@@ -134,13 +99,13 @@ export async function POST(req: NextRequest) {
 
         const { examInfo, questions } = normalized
 
-        for (const [index, question] of questions.entries()) {
+        for (const question of questions) {
             if (question.type === 'MCQ') {
                 if (!question.options || question.options.length !== 4) {
-                    return NextResponse.json({ error: `Question ${index + 1}: MCQ must include exactly 4 options` }, { status: 400 })
+                    return NextResponse.json({ error: 'MCQ questions must include exactly 4 options' }, { status: 400 })
                 }
                 if (typeof question.correctOptionIndex !== 'number' || question.correctOptionIndex < 0 || question.correctOptionIndex > 3) {
-                    return NextResponse.json({ error: `Question ${index + 1}: MCQ must include a valid correctOptionIndex from 0 to 3` }, { status: 400 })
+                    return NextResponse.json({ error: 'MCQ questions must include a valid correctOptionIndex from 0 to 3' }, { status: 400 })
                 }
             }
         }
