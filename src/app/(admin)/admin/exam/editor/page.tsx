@@ -57,14 +57,13 @@ export default function ExamEditorPage() {
 
             const data = await response.json()
 
-            if (!response.ok) {
+            if (!response.ok || !data.ok) {
                 throw new Error(data.error || 'Failed to save exam')
             }
 
             toast.success('Tạo đề thành công!')
 
-            // Redirect to exam list
-            router.push('/admin/exam')
+            router.push(`/admin/exam/success?examId=${data.examId}`)
 
         } catch (error: any) {
             console.error('Save error:', error)
