@@ -34,7 +34,7 @@ async function runTest() {
             console.log(`\nQuestion ${i + 1}:`);
             console.log("Content:", q.content);
             console.log("Options:", q.options);
-            console.log("Solution:", q.solution ? "FOUND" : "NOT FOUND");
+            console.log("Solution:", q.explanation ? "FOUND" : "NOT FOUND");
         });
 
     } catch (error) {
